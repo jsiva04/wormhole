@@ -17,6 +17,8 @@ dist/
 .env.development.local
 .env.test.local
 .env.production.local
+long_term_plan.md
+short_term_plan.md
 
 # logs
 npm-debug.log*
