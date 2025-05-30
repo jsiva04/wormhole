@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wormhole</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f0f0f0;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .video-container {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+      video {
+        width: 100%;
+        max-width: 500px;
+        height: auto;
+        background-color: #000;
+        border: 2px solid #333;
+        border-radius: 8px;
+      }
+      .controls {
+        margin-top: 20px;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+      input {
+        padding: 10px;
+        font-size: 16px;
+        margin: 5px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      #status {
+        margin-top: 10px;
+        padding: 10px;
+        background-color: #e9ecef;
+        border-radius: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Video Call App</h1>
+
+      <div class="video-container">
+        <div>
+          <h3>Your Video</h3>
+          <video id="localVideo" autoplay muted></video>
+        </div>
+        <div>
+          <h3>Remote Video</h3>
+          <video id="remoteVideo" autoplay></video>
+        </div>
+      </div>
+
+      <div class="controls">
+        <input
+          type="text"
+          id="roomId"
+          placeholder="Enter Room ID"
+          value="room1"
+        />
+        <button id="startCall">Start Call</button>
+        <button id="joinCall">Join Call</button>
+        <button id="endCall" disabled>End Call</button>
+      </div>
+
+      <div id="status">Ready to connect...</div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      let localStream;
+      let remoteStream;
+      let peerConnection;
+      let currentRoom;
+
+      const localVideo = document.getElementById("localVideo");
+      const remoteVideo = document.getElementById("remoteVideo");
+      const roomIdInput = document.getElementById("roomId");
+      const startCallBtn = document.getElementById("startCall");
+      const joinCallBtn = document.getElementById("joinCall");
+      const endCallBtn = document.getElementById("endCall");
+      const statusDiv = document.getElementById("status");
+
+      const configuration = {
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      };
+
+      // Get user media
+      async function startLocalStream() {
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true,
+          });
+          localVideo.srcObject = localStream;
+          updateStatus("Local stream started");
+        } catch (error) {
+          console.error("Error accessing media devices:", error);
+          updateStatus("Error: Could not access camera/microphone");
+        }
+      }
+
+      // Create peer connection
+      function createPeerConnection() {
+        peerConnection = new RTCPeerConnection(configuration);
+
+        // Add local stream tracks to peer connection
+        localStream.getTracks().forEach((track) => {
+          peerConnection.addTrack(track, localStream);
+        });
+
+        // Handle remote stream
+        peerConnection.ontrack = (event) => {
+          if (!remoteStream) {
+            remoteStream = new MediaStream();
+            remoteVideo.srcObject = remoteStream;
+          }
+          remoteStream.addTrack(event.track);
+        };
+
+        // Handle ICE candidates
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate) {
+            socket.emit("ice-candidate", {
+              candidate: event.candidate,
+              to: remotePeerId,
+            });
+          }
+        };
+
+        return peerConnection;
+      }
+
+      let remotePeerId;
+
+      // Start call (create offer)
+      async function startCall() {
+        const roomId = roomIdInput.value;
+        if (!roomId) {
+          updateStatus("Please enter a room ID");
+          return;
+        }
+
+        await startLocalStream();
+        currentRoom = roomId;
+        socket.emit("join-room", roomId);
+
+        startCallBtn.disabled = true;
+        joinCallBtn.disabled = true;
+        endCallBtn.disabled = false;
+        updateStatus(`Waiting for someone to join room: ${roomId}`);
+      }
+
+      // Join call (wait for offer)
+      async function joinCall() {
+        const roomId = roomIdInput.value;
+        if (!roomId) {
+          updateStatus("Please enter a room ID");
+          return;
+        }
+
+        await startLocalStream();
+        currentRoom = roomId;
+        socket.emit("join-room", roomId);
+
+        startCallBtn.disabled = true;
+        joinCallBtn.disabled = true;
+        endCallBtn.disabled = false;
+        updateStatus(`Joined room: ${roomId}, waiting for call...`);
+      }
+
+      // End call
+      function endCall() {
+        if (peerConnection) {
+          peerConnection.close();
+          peerConnection = null;
+        }
+
+        if (localStream) {
+          localStream.getTracks().forEach((track) => track.stop());
+          localStream = null;
+        }
+
+        localVideo.srcObject = null;
+        remoteVideo.srcObject = null;
+        remoteStream = null;
+
+        startCallBtn.disabled = false;
+        joinCallBtn.disabled = false;
+        endCallBtn.disabled = true;
+        updateStatus("Call ended");
+      }
+
+      // Socket event handlers
+      socket.on("user-connected", async (userId) => {
+        remotePeerId = userId;
+        updateStatus("User connected, creating offer...");
+
+        peerConnection = createPeerConnection();
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+
+        socket.emit("offer", {
+          offer: offer,
+          to: userId,
+        });
+      });
+
+      socket.on("offer", async (data) => {
+        remotePeerId = data.from;
+        updateStatus("Received offer, creating answer...");
+
+        peerConnection = createPeerConnection();
+        await peerConnection.setRemoteDescription(data.offer);
+
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+
+        socket.emit("answer", {
+          answer: answer,
+          to: data.from,
+        });
+      });
+
+      socket.on("answer", async (data) => {
+        updateStatus("Received answer, connection established");
+        await peerConnection.setRemoteDescription(data.answer);
+      });
+
+      socket.on("ice-candidate", async (data) => {
+        if (peerConnection) {
+          await peerConnection.addIceCandidate(data.candidate);
+        }
+      });
+
+      socket.on("user-disconnected", (userId) => {
+        if (userId === remotePeerId) {
+          updateStatus("Remote user disconnected");
+          endCall();
+        }
+      });
+
+      // Update status
+      function updateStatus(message) {
+        statusDiv.textContent = message;
+        console.log(message);
+      }
+
+      // Event listeners
+      startCallBtn.addEventListener("click", startCall);
+      joinCallBtn.addEventListener("click", joinCall);
+      endCallBtn.addEventListener("click", endCall);
+    </script>
+  </body>
+</html>
