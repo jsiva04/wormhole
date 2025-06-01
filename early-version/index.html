@@ -4,64 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Wormhole</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 20px;
-        background-color: #f0f0f0;
-      }
-      .container {
-        max-width: 1200px;
-        margin: 0 auto;
-      }
-      .video-container {
-        display: flex;
-        gap: 20px;
-        margin-bottom: 20px;
-      }
-      video {
-        width: 100%;
-        max-width: 500px;
-        height: auto;
-        background-color: #000;
-        border: 2px solid #333;
-        border-radius: 8px;
-      }
-      .controls {
-        margin-top: 20px;
-      }
-      button {
-        padding: 10px 20px;
-        margin: 5px;
-        font-size: 16px;
-        cursor: pointer;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        border-radius: 5px;
-      }
-      button:hover {
-        background-color: #0056b3;
-      }
-      button:disabled {
-        background-color: #ccc;
-        cursor: not-allowed;
-      }
-      input {
-        padding: 10px;
-        font-size: 16px;
-        margin: 5px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-      }
-      #status {
-        margin-top: 10px;
-        padding: 10px;
-        background-color: #e9ecef;
-        border-radius: 5px;
-      }
-    </style>
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="container">
@@ -96,17 +39,17 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
       console.log("Script starting...");
-      
+
       // Initialize app when DOM is ready
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeApp);
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initializeApp);
       } else {
         initializeApp();
       }
-      
+
       function initializeApp() {
         console.log("Initializing app...");
-        
+
         // Global variables
         const socket = io();
         let localStream;
@@ -123,7 +66,7 @@
         const joinCallBtn = document.getElementById("joinCall");
         const endCallBtn = document.getElementById("endCall");
         const statusDiv = document.getElementById("status");
-        
+
         console.log("DOM elements loaded:", {
           localVideo: !!localVideo,
           remoteVideo: !!remoteVideo,
@@ -131,7 +74,7 @@
           startCallBtn: !!startCallBtn,
           joinCallBtn: !!joinCallBtn,
           endCallBtn: !!endCallBtn,
-          statusDiv: !!statusDiv
+          statusDiv: !!statusDiv,
         });
 
         // Configuration
@@ -144,12 +87,12 @@
           try {
             updateStatus("Requesting camera/microphone access...");
             console.log("Requesting getUserMedia...");
-            
+
             localStream = await navigator.mediaDevices.getUserMedia({
               video: true,
               audio: true,
             });
-            
+
             console.log("getUserMedia successful, stream:", localStream);
             localVideo.srcObject = localStream;
             updateStatus("Local stream started");
@@ -157,7 +100,9 @@
           } catch (error) {
             console.error("Error accessing media devices:", error);
             updateStatus(`Error: ${error.message}`);
-            alert(`Camera/Microphone Error: ${error.message}\n\nMake sure to:\n1. Allow camera/microphone permissions\n2. Use HTTPS or localhost\n3. Check if camera is being used by another app`);
+            alert(
+              `Camera/Microphone Error: ${error.message}\n\nMake sure to:\n1. Allow camera/microphone permissions\n2. Use HTTPS or localhost\n3. Check if camera is being used by another app`
+            );
             return false;
           }
         }
@@ -174,7 +119,9 @@
               peerConnection.addTrack(track, localStream);
             });
           } else {
-            console.error("No local stream available when creating peer connection");
+            console.error(
+              "No local stream available when creating peer connection"
+            );
           }
 
           // Handle remote stream
@@ -210,11 +157,11 @@
         // Start call (create offer)
         async function startCall() {
           console.log("startCall() function called");
-          
+
           try {
             const roomId = roomIdInput.value;
             console.log("Room ID:", roomId);
-            
+
             if (!roomId) {
               console.log("No room ID provided");
               updateStatus("Please enter a room ID");
@@ -223,16 +170,16 @@
 
             console.log("Attempting to start local stream...");
             const streamStarted = await startLocalStream();
-            
+
             if (!streamStarted || !localStream) {
               console.error("Failed to start local stream");
               updateStatus("Failed to access camera/microphone");
               return;
             }
-            
+
             console.log("Local stream started successfully");
             currentRoom = roomId;
-            
+
             console.log("Socket connected?", socket.connected);
             console.log("Emitting join-room event with room ID:", roomId);
             socket.emit("join-room", roomId);
@@ -241,7 +188,7 @@
             joinCallBtn.disabled = true;
             endCallBtn.disabled = false;
             updateStatus(`Waiting for someone to join room: ${roomId}`);
-            
+
             console.log("startCall() completed successfully");
           } catch (error) {
             console.error("Error in startCall():", error);
@@ -253,11 +200,11 @@
         // Join call (wait for offer)
         async function joinCall() {
           console.log("joinCall() function called");
-          
+
           try {
             const roomId = roomIdInput.value;
             console.log("Room ID:", roomId);
-            
+
             if (!roomId) {
               console.log("No room ID provided");
               updateStatus("Please enter a room ID");
@@ -266,16 +213,16 @@
 
             console.log("Attempting to start local stream...");
             const streamStarted = await startLocalStream();
-            
+
             if (!streamStarted || !localStream) {
               console.error("Failed to start local stream");
               updateStatus("Failed to access camera/microphone");
               return;
             }
-            
+
             console.log("Local stream started successfully");
             currentRoom = roomId;
-            
+
             console.log("Socket connected?", socket.connected);
             console.log("Emitting join-room event with room ID:", roomId);
             socket.emit("join-room", roomId);
@@ -284,7 +231,7 @@
             joinCallBtn.disabled = true;
             endCallBtn.disabled = false;
             updateStatus(`Joined room: ${roomId}, waiting for call...`);
-            
+
             console.log("joinCall() completed successfully");
           } catch (error) {
             console.error("Error in joinCall():", error);
@@ -296,7 +243,7 @@
         // End call
         function endCall() {
           console.log("Ending call...");
-          
+
           if (peerConnection) {
             peerConnection.close();
             peerConnection = null;
@@ -389,7 +336,7 @@
         socket.on("answer", async (data) => {
           console.log("Received answer");
           updateStatus("Received answer, connection established");
-          
+
           try {
             await peerConnection.setRemoteDescription(data.answer);
           } catch (error) {
@@ -419,7 +366,7 @@
 
         // Event listeners
         console.log("Setting up event listeners...");
-        
+
         if (startCallBtn) {
           startCallBtn.addEventListener("click", () => {
             console.log("Start Call button clicked");
@@ -429,7 +376,7 @@
         } else {
           console.error("Start Call button not found!");
         }
-        
+
         if (joinCallBtn) {
           joinCallBtn.addEventListener("click", () => {
             console.log("Join Call button clicked");
@@ -439,7 +386,7 @@
         } else {
           console.error("Join Call button not found!");
         }
-        
+
         if (endCallBtn) {
           endCallBtn.addEventListener("click", () => {
             console.log("End Call button clicked");
@@ -449,15 +396,17 @@
         } else {
           console.error("End Call button not found!");
         }
-        
+
         // Test that socket.io is loaded
-        console.log("Socket.io loaded:", typeof io !== 'undefined');
+        console.log("Socket.io loaded:", typeof io !== "undefined");
         console.log("Socket object:", socket);
         console.log("Socket connected:", socket.connected);
-        
+
         // Test button click manually
-        console.log("Testing if startCall function is accessible:", typeof startCall);
-        
+        console.log(
+          "Testing if startCall function is accessible:",
+          typeof startCall
+        );
       } // End of initializeApp
     </script>
   </body>
