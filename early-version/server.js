@@ -7,10 +7,8 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server);
 
-// Serve static files
 app.use(express.static(__dirname));
 
-// Serve the HTML file
 app.get('/', (_, res) => {
   res.sendFile(join(__dirname, 'index.html'));
 });
@@ -19,14 +17,12 @@ app.get('/', (_, res) => {
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
-  // Join a room
   socket.on('join-room', (roomId) => {
     socket.join(roomId);
     socket.to(roomId).emit('user-connected', socket.id);
     console.log(`User ${socket.id} joined room ${roomId}`);
   });
 
-  // Relay offer
   socket.on('offer', (data) => {
     socket.to(data.to).emit('offer', {
       offer: data.offer,
@@ -34,7 +30,6 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Relay answer
   socket.on('answer', (data) => {
     socket.to(data.to).emit('answer', {
       answer: data.answer,
@@ -42,7 +37,6 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Relay ICE candidates
   socket.on('ice-candidate', (data) => {
     socket.to(data.to).emit('ice-candidate', {
       candidate: data.candidate,
@@ -50,7 +44,6 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Handle disconnect
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
     io.emit('user-disconnected', socket.id);

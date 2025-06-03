@@ -2,7 +2,6 @@ console.log("Script starting...");
 
 let socket;
 
-// Initialize app when DOM is ready
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initializeApp);
 } else {
@@ -12,7 +11,6 @@ if (document.readyState === "loading") {
 function initializeApp() {
     console.log("Initializing app...");
     
-    // Initialize socket
     socket = io();
 
     // Global variables
@@ -41,12 +39,10 @@ function initializeApp() {
         statusDiv: !!statusDiv,
     });
 
-    // Configuration
     const configuration = {
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     };
 
-    // Get user media
     async function startLocalStream() {
         try {
             updateStatus("Requesting camera/microphone access...");
@@ -71,7 +67,6 @@ function initializeApp() {
         }
     }
 
-    // Create peer connection
     function createPeerConnection() {
         console.log("Creating peer connection...");
         peerConnection = new RTCPeerConnection(configuration);
@@ -118,7 +113,6 @@ function initializeApp() {
         return peerConnection;
     }
 
-    // Start call (create offer)
     async function startCall() {
         console.log("startCall() function called");
 
@@ -161,7 +155,6 @@ function initializeApp() {
         }
     }
 
-    // Join call (wait for offer)
     async function joinCall() {
         console.log("joinCall() function called");
 
@@ -204,7 +197,6 @@ function initializeApp() {
         }
     }
 
-    // End call
     function endCall() {
         console.log("Ending call...");
 
@@ -236,7 +228,6 @@ function initializeApp() {
         updateStatus("Call ended");
     }
 
-    // Update status
     function updateStatus(message) {
         statusDiv.textContent = message;
         console.log("[STATUS]", message);
@@ -328,7 +319,6 @@ function initializeApp() {
         }
     });
 
-    // Event listeners
     console.log("Setting up event listeners...");
 
     if (startCallBtn) {
@@ -361,14 +351,7 @@ function initializeApp() {
         console.error("End Call button not found!");
     }
 
-    // Test that socket.io is loaded
     console.log("Socket.io loaded:", typeof io !== "undefined");
     console.log("Socket object:", socket);
     console.log("Socket connected:", socket.connected);
-
-    // Test button click manually
-    console.log(
-        "Testing if startCall function is accessible:",
-        typeof startCall
-    );
-} // End of initializeApp
+}
